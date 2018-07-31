@@ -1,5 +1,9 @@
 # R Samples
 
+GitHub Pages: https://bodhi-root.github.io/r-samples/
+
+## Overview
+
 This is a place to put sample R notebooks with re-usable code.  The site
 is built using R Markdown and the helpful guide here:
 
@@ -9,6 +13,8 @@ is built using R Markdown and the helpful guide here:
 As an FYI (since I get paranoid about space usage): the bare-bones "hello world"
 sample had 65 files and total 3.56 MB of data (mostly the JavaScript and
 stylesheet libraries).  This isn't too bad.
+
+## Editing
 
 To add new pages to this website simply:
 
