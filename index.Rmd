@@ -1,0 +1,29 @@
+---
+title: "Dan's R Samples"
+---
+
+## Overview
+
+This website is a collection of sample R Notebooks that I intend to use as
+reference and documentation for different types of analyses.  A simple list
+of these is below:
+
+* [Logistic Regression](notebooks/logistic_regression.nb.html) - Logistic Regression notebook
+
+## Motivation
+
+I've tried many different options for saving code samples in the past.  Let's
+see how this one goes.  Some of the different options I've looked at include:
+
+* __Saving R scripts/notebooks on my computer__ - This works OK, but it's hard to share with others and God forbid I lose my hard drive... Saving these in git
+will remedy the fear of losing your hard drive, but then it's hard to view the
+notebooks without opening them locally.  (This is where a website is great!)
+* __Wiki Documentation (Confluence)__ - Confluence is cool, but you have to
+copy and paste your code samples into the page as well as any resulting plots.
+This is where R Notebooks are great for not only saving code but also output
+and making a template where you can change the input and analyze different data.
+* __Manual GitHub Pages__ - I created a website that used a combination of
+manually-created HTML files with the HTML output of R Notebooks.  This worked
+well (and I could style the HTML any way I wanted), but it was a pain to update
+and note something that was easily reproduce-able.  I'm hoping using R Markdown
+for the entire website will make things a lot easier.  It looks promising!

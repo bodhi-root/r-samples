@@ -1,0 +1,176 @@
+---
+title: "Logistic Regression"
+output: 
+  html_notebook:
+    toc: yes
+---
+
+## Overview
+
+This notebook is similar to a Kernel I wrote on Kaggle to look at the Titanic
+sample competition.  This uses logistic regression to predict whether someone
+would survive the sinking of the Titanic.
+
+This notebook uses a very basic approach (especially in its handling of missing
+values).  It uses the basic 'glm' and 'step' functions to build logistic models
+and add variables in a stepwise manner.  A better approach would be to use the
+'mlr' library with its advanced data prep and pipeline functions.
+
+## Libraries
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+```
+
+## Load Data
+
+The data is included in this project.  (NOTE: Paths are relative to the current
+notebook, so you will want to set your working directory appropriately.)
+
+```{r}
+df.train <- read.csv("../data/titanic/train.csv", stringsAsFactors=F)
+df.test <- read.csv("../data/titanic/test.csv", stringsAsFactors=F)
+
+df.all <- df.train %>%
+  select(-Survived) %>%
+  rbind(df.test)
+```
+
+## Scoring Function
+
+As with the Kaggle competition, we'll score our predictions based on the percentage
+that are correct.
+
+```{r}
+ScorePredictions <- function(predicted, actual) {
+  sum(predicted == actual) / length(actual)
+}
+```
+
+## Baseline Methods
+
+We start by analyzing two naive baselines.  First, we can predict the most common
+occurrence (everyone dies).  The resulting accuracy is 61.62%.
+
+```{r}
+NaivePrediction <- function(df) {
+  # Assume everyone dies (this is the most common outcome)
+  rep(0, nrow(df))
+}
+
+ScorePredictions(NaivePrediction(df.train), df.train$Survived)
+```
+
+Next, we can predict that all the females survive and the males die.  This is the
+baseline method used by Kaggle.  The resulting accuracy is 78.68%.
+
+```{r}
+GenderPrediction <- function(df) {
+  # Assume women live and men die
+  ifelse(df$Sex == "female", 1, 0)
+}
+
+ScorePredictions(GenderPrediction(df.train), df.train$Survived)
+```
+
+## Prep Data
+
+Let's prepare our data to build a more sophisticated model.  The code below will
+fill in missing values with either the median value for continuous variables or
+the mode for categorical values.  It will also create factors out of the categorical
+variables.  (NOTE: I hard-code the range of values in the factors because to ensure
+that the training and test data are identical.  Factor differences here has burned
+me before.)
+
+```{r}
+PrepModelData <- function(df) {
+  df.model <- df %>%
+    mutate(
+      Age = ifelse(is.na(Age), median(df$Age, na.rm=T), Age),
+      Fare = ifelse(is.na(Fare), median(df$Fare, na.rm=T), Fare),
+      Embarked = ifelse(is.na(Embarked) | Embarked=="", "S", Embarked)
+    ) %>%
+    mutate(
+      Pclass = factor(Pclass, c(1,2,3)),
+      Sex = factor(Sex, c("male", "female")),
+      Embarked = factor(Embarked, c("S","C","Q"))
+    ) %>%
+    select(Pclass, Sex, Age, SibSp, Parch, Fare, Embarked)
+}
+
+df.train.model <- PrepModelData(df.train)
+df.test.model <- PrepModelData(df.test)
+```
+
+## Logistic Model
+
+Now we're ready to build a simple logistic model:
+
+```{r}
+df.train.model$Survived = df.train$Survived
+
+model <- glm(Survived ~ ., data=df.train.model, family="binomial")
+
+summary(model)
+```
+
+We can get the actual predicted probabilities using 'predict' with 'type' equals
+'response'.  To convert these into actual predictions we simply round them to the
+nearest integer (1 or 0).  The resulting model is 80.47% accurate (but of course
+we are testing on in-sample data, which is not a reliable predictor of out-of-sample
+performance.)
+
+```{r}
+train.pred.prob <- predict(model, type="response")
+train.pred <- round(train.pred.prob, 0)
+
+ScorePredictions(train.pred, df.train$Survived)
+```
+
+If we want to generate a submission for the Kaggle competition, we can do so using
+the following code.  This generates predictions for the test data set just as before
+and puts the results into a data frame that combines the 'PassengerId' with the
+prediction.
+
+```{r}
+test.pred.prob <- predict(model, type="response", newdata=df.test.model)
+test.pred <- round(test.pred.prob, 0)
+
+df.submission <- data.frame(
+  PassengerId = df.test$PassengerId,
+  Survived = test.pred
+)
+
+head(df.submission)
+```
+
+## Stepwise Regression
+
+The 'MASS' library lets us perform step-wise regression with the following code.
+This will begin with our initial (full) model and seeing if there are features
+that can be removed that will lower the AIC score.  'direction="both"' means that
+after the first step it will try both removing and adding features back in to
+find the best way to improve the AIC.  We can see in the output that the stepwise
+regression removes the 'Parch' and 'Fare' features.
+
+```{r}
+library(MASS)
+step.model <- model %>% stepAIC(direction="both")
+```
+
+As shown below, we are left with a model that is much more statistically 
+significant.
+
+```{r}
+summary(step.model)
+```
+
+We score the model and notice that we haven't lost that much predictive power
+either.  Our current score is 80.36% (versus 80.47% previously).
+
+```{r}
+train.pred.prob <- predict(step.model, type="response")
+train.pred <- round(train.pred.prob, 0)
+
+ScorePredictions(train.pred, df.train$Survived)
+```

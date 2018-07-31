@@ -1,0 +1,14 @@
+name: "dans-r-website"
+output_dir: "."
+exclude: ["data", "README.md"]
+navbar:
+  title: "Dan's R Sample Code"
+  left:
+    - text: "Home"
+      href: index.html
+#    - text: "About Me"
+#      href: about.html
+output:
+  html_document:
+    theme: spacelab
+    css: style.css
