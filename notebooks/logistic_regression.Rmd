@@ -84,7 +84,7 @@ me before.)
 
 ```{r}
 PrepModelData <- function(df) {
-  df.model <- df %>%
+  df %>%
     mutate(
       Age = ifelse(is.na(Age), median(df$Age, na.rm=T), Age),
       Fare = ifelse(is.na(Fare), median(df$Fare, na.rm=T), Fare),

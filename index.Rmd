@@ -8,7 +8,8 @@ This website is a collection of sample R Notebooks that I intend to use as
 reference and documentation for different types of analyses.  A simple list
 of these is below:
 
-* [Logistic Regression](notebooks/logistic_regression.nb.html) - Logistic Regression notebook
+* [Logistic Regression](notebooks/logistic_regression.nb.html)
+* [Logistic Regression with MLR](notebooks/logistic_regression_mlr.nb.html)
 
 ## Motivation
 

@@ -1,0 +1,160 @@
+---
+title: "Logistic Regression (MLR)"
+output: html_notebook
+---
+
+Demo of Logistic Regression using the MLR package.
+
+## Load Libraries
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(mlr)
+```
+
+## Load Data
+
+The data is included in this project.  (NOTE: Paths are relative to the current
+notebook, so you will want to set your working directory appropriately.)
+
+```{r}
+df.train <- read.csv("../data/titanic/train.csv", stringsAsFactors=F)
+df.test  <- read.csv("../data/titanic/test.csv",  stringsAsFactors=F)
+```
+
+## Prep Data
+
+We'll prepare our data by imputing some missing values, making sure factors
+are correctly calculated, and selecting just the features of interest.
+
+```{r}
+PrepModelData <- function(df) {
+  
+  df$Age = ifelse(is.na(df$Age), median(df$Age, na.rm=T), df$Age)
+  df$Fare = ifelse(is.na(df$Fare), median(df$Fare, na.rm=T), df$Fare)
+  df$Embarked = ifelse(is.na(df$Embarked) | df$Embarked=="", "S", df$Embarked)
+  
+  df$Pclass   <- factor(df$Pclass, c(1,2,3))
+  df$Sex      <- factor(df$Sex, c("male", "female"))
+  df$Embarked <- factor(df$Embarked, c("S","C","Q"))
+  
+  if (!("Survived" %in% colnames(df))) {
+    df$Survived <- NA
+  }
+  
+  df %>% dplyr::select(Survived, Pclass, Sex, Age, SibSp, Parch, Fare, Embarked)
+}
+
+df.train.model <- PrepModelData(df.train)
+df.test.model  <- PrepModelData(df.test)
+```
+
+## Create classification problem
+
+In MLR, we begin by defining our classification task.  The "Survived" column
+is the target of our prediction.
+
+```{r}
+task = makeClassifTask(
+  id="Titanic", data=df.train.model, target="Survived")
+
+summarizeColumns(task)
+```
+
+Next, we create the learner.
+
+```{r}
+lrn <- makeLearner("classif.binomial")
+```
+
+Now we test the modl using a 5-fold cross-validation and measuring using the
+"accuracy" metric.
+
+```{r}
+cv = makeResampleDesc("CV",iters=5)
+res = resample(lrn, task, cv, acc)
+```
+
+Results look good.  Now, let's train the model on all of the data.  We'll
+take a quick peek at the underlying model and then make predictions for
+the in-sample data.
+
+```{r}
+model = train(lrn, task)
+summary(model$learner.model)
+```
+
+We can make predictions on in-sample data and measure these with the 
+"accuracy" metric using:
+
+```{r}
+pred = predict(model, task=task)
+performance(pred, measures=list(acc))
+```
+
+To predict out-of-sample data, we just use:
+
+```{r}
+pred <- predict(model, newdata=df.test.model)
+head(pred$data)
+```
+
+## Getting Prediction Probabilities
+
+In order to get prediction probabilities we need to specify 'predict.type="prob"' when we build
+the learner.  Then the prediction 'data' object will contain prediction probabilities for each
+object and each outcome.
+
+```{r}
+lrn <- makeLearner("classif.binomial", predict.type="prob")
+model <- train(lrn, task)
+pred <- predict(model, newdata=df.test.model)
+head(pred$data)
+```
+
+There is also a helper function to just obtain the probabilities for the possitive event in
+a generic way:
+
+```{r}
+head(getPredictionProbabilities(pred, "1"))
+```
+
+## Hyper-Parameter Tuning
+
+The binomial model only has one tuning parameter: the 'link' parameter
+specifying the function to use.
+
+```{r}
+getParamSet(lrn)
+```
+
+We can build a searchable space of these parameters with:
+
+NOTE: Including the "link" value of "log" generated an error for this
+data set, so I had to exclude it.
+
+```{r}
+ps <- makeParamSet(
+  makeDiscreteParam("link", values = c("logit","probit","cloglog","cauchit"))
+)
+ctrl <- makeTuneControlGrid()
+```
+
+Then we can do the actual tuning:
+
+```{r}
+lrn <- makeLearner("classif.binomial")
+res = tuneParams(lrn, task, resampling=cv, measures=acc, par.set=ps, control=ctrl)
+```
+
+The optimal parameters are stored in 'res$x'.  We can set these parameters on
+learner, train against the whole data set and measure in-sample performance
+with:
+
+```{r}
+lrn.tuned <- setHyperPars(lrn, par.vals=res$x)
+
+model <- train(lrn.tuned, task)
+pred = predict(model, task=task)
+performance(pred, measures=list(acc))
+```
